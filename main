@@ -1,0 +1,347 @@
+import React, { useState, useEffect } from 'react';
+
+const RamadanQuranTracker = () => {
+  // States for application
+  const [step, setStep] = useState(1);
+  const [khatmaCount, setKhatmaCount] = useState("");
+  const [customKhatmaCount, setCustomKhatmaCount] = useState("");
+  const [pagesPerDay, setPagesPerDay] = useState(0);
+  const [selectedPrayers, setSelectedPrayers] = useState({
+    fajr: false,
+    dhuhr: false,
+    asr: false,
+    maghrib: false,
+    isha: false
+  });
+  const [prayerDistribution, setPrayerDistribution] = useState({});
+  const [checkedTimes, setCheckedTimes] = useState([]);
+  const [monthlyProgress, setMonthlyProgress] = useState(Array(30).fill(false));
+  
+  // Prayer names in Arabic
+  const prayerNames = {
+    fajr: "الفجر",
+    dhuhr: "الظهر",
+    asr: "العصر",
+    maghrib: "المغرب",
+    isha: "العشاء"
+  };
+  
+  // Calculate pages per day based on khatma count
+  const calculatePagesPerDay = (count) => {
+    const totalPages = count * 604;
+    return Math.ceil(totalPages / 30);
+  };
+  
+  // Get current date in Arabic format
+  const getCurrentDate = () => {
+    const date = new Date();
+    const options = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    return date.toLocaleDateString('ar-SA', options);
+  };
+  
+  // Handle first question submission
+  const handleKhatmaSubmit = () => {
+    const count = khatmaCount === "custom" ? 
+      parseInt(customKhatmaCount) : 
+      parseInt(khatmaCount);
+    
+    if (!isNaN(count) && count > 0) {
+      const pages = calculatePagesPerDay(count);
+      setPagesPerDay(pages);
+      setStep(2);
+    }
+  };
+  
+  // Toggle prayer selection
+  const togglePrayer = (prayer) => {
+    setSelectedPrayers({
+      ...selectedPrayers,
+      [prayer]: !selectedPrayers[prayer]
+    });
+  };
+  
+  // Calculate pages distribution when prayers are selected/deselected
+  useEffect(() => {
+    const selectedCount = Object.values(selectedPrayers).filter(Boolean).length;
+    
+    if (selectedCount > 0 && pagesPerDay > 0) {
+      const distribution = {};
+      const selectedPrayerKeys = Object.keys(selectedPrayers).filter(key => selectedPrayers[key]);
+      
+      // Base pages per prayer
+      const basePages = Math.floor(pagesPerDay / selectedCount);
+      // Remaining pages to distribute
+      let remainingPages = pagesPerDay - (basePages * selectedCount);
+      
+      selectedPrayerKeys.forEach(prayer => {
+        distribution[prayer] = basePages + (remainingPages > 0 ? 1 : 0);
+        if (remainingPages > 0) remainingPages--;
+      });
+      
+      setPrayerDistribution(distribution);
+    } else {
+      setPrayerDistribution({});
+    }
+  }, [selectedPrayers, pagesPerDay]);
+  
+  // Handle second question submission
+  const handlePrayerSelectionSubmit = () => {
+    if (Object.values(selectedPrayers).some(Boolean)) {
+      setStep(3);
+    }
+  };
+  
+  // Toggle a reading time checkbox
+  const toggleTimeCheck = (prayer) => {
+    const newCheckedTimes = [...checkedTimes];
+    if (newCheckedTimes.includes(prayer)) {
+      newCheckedTimes.splice(newCheckedTimes.indexOf(prayer), 1);
+    } else {
+      newCheckedTimes.push(prayer);
+    }
+    setCheckedTimes(newCheckedTimes);
+    
+    // Check if all selected prayers are checked
+    updateMonthlyProgress(newCheckedTimes);
+  };
+  
+  // Update monthly progress based on checked times
+  const updateMonthlyProgress = (checked) => {
+    const selectedPrayerKeys = Object.keys(selectedPrayers).filter(key => selectedPrayers[key]);
+    const isComplete = selectedPrayerKeys.every(prayer => checked.includes(prayer));
+    
+    if (isComplete) {
+      const newMonthlyProgress = [...monthlyProgress];
+      const today = new Date().getDate() - 1; // 0-indexed
+      if (today < 30) {
+        newMonthlyProgress[today] = true;
+        setMonthlyProgress(newMonthlyProgress);
+      }
+    }
+  };
+  
+  // Reset the daily checklist
+  const resetDay = () => {
+    setCheckedTimes([]);
+    const newMonthlyProgress = [...monthlyProgress];
+    const today = new Date().getDate() - 1;
+    if (today < 30) {
+      newMonthlyProgress[today] = false;
+      setMonthlyProgress(newMonthlyProgress);
+    }
+  };
+  
+  // Convert number to Arabic numeral
+  const convertToArabicNumeral = (num) => {
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return num.toString().split('').map(digit => arabicNumerals[parseInt(digit)]).join('');
+  };
+
+  return (
+    <div className="flex flex-col items-center bg-gray-50 min-h-screen p-4 font-sans text-right" dir="rtl">
+      {step === 1 && (
+        <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+          <h1 className="text-2xl font-bold text-center mb-6 text-green-700">خطة ختم القرآن في رمضان</h1>
+          
+          <div className="mb-6">
+            <h2 className="text-xl mb-3">كم مرة بتختم القران في رمضان؟</h2>
+            
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center space-x-3 space-x-reverse">
+                <input
+                  type="radio"
+                  value="1"
+                  checked={khatmaCount === "1"}
+                  onChange={() => setKhatmaCount("1")}
+                  className="form-radio h-5 w-5 text-green-600"
+                />
+                <span className="mr-2">١</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 space-x-reverse">
+                <input
+                  type="radio"
+                  value="2"
+                  checked={khatmaCount === "2"}
+                  onChange={() => setKhatmaCount("2")}
+                  className="form-radio h-5 w-5 text-green-600"
+                />
+                <span className="mr-2">٢</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 space-x-reverse">
+                <input
+                  type="radio"
+                  value="3"
+                  checked={khatmaCount === "3"}
+                  onChange={() => setKhatmaCount("3")}
+                  className="form-radio h-5 w-5 text-green-600"
+                />
+                <span className="mr-2">٣</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 space-x-reverse">
+                <input
+                  type="radio"
+                  value="custom"
+                  checked={khatmaCount === "custom"}
+                  onChange={() => setKhatmaCount("custom")}
+                  className="form-radio h-5 w-5 text-green-600"
+                />
+                <span className="mr-2">أدخل العدد</span>
+              </label>
+              
+              {khatmaCount === "custom" && (
+                <input
+                  type="number"
+                  value={customKhatmaCount}
+                  onChange={(e) => setCustomKhatmaCount(e.target.value)}
+                  placeholder="أدخل عدد الختمات"
+                  min="1"
+                  className="p-2 border border-gray-300 rounded mt-2"
+                />
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={handleKhatmaSubmit}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            disabled={!khatmaCount || (khatmaCount === "custom" && !customKhatmaCount)}
+          >
+            التالي
+          </button>
+        </div>
+      )}
+      
+      {step === 2 && (
+        <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+          <h1 className="text-2xl font-bold text-center mb-6 text-green-700">خطة ختم القرآن في رمضان</h1>
+          
+          <div className="mb-4">
+            <p className="text-lg mb-4">
+              لإتمام {khatmaCount === "custom" ? customKhatmaCount : khatmaCount} ختمة، عليك قراءة {convertToArabicNumeral(pagesPerDay)} صفحة يومياً
+            </p>
+          </div>
+          
+          <div className="mb-6">
+            <h2 className="text-xl mb-4">في أي صلوات تنوي القراءة؟</h2>
+            <p className="text-sm mb-3 text-gray-600">حدد أوقات الصلاة التي تفضل القراءة فيها وسنحسب توزيع الصفحات تلقائياً</p>
+            
+            <div className="flex flex-col gap-3 mt-4">
+              {Object.entries(prayerNames).map(([key, name]) => (
+                <label key={key} className="flex items-center justify-between border p-3 rounded hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedPrayers[key]}
+                      onChange={() => togglePrayer(key)}
+                      className="form-checkbox h-5 w-5 text-green-600"
+                    />
+                    <span className="mr-2">بعد صلاة {name}</span>
+                  </div>
+                  {selectedPrayers[key] && prayerDistribution[key] && (
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                      {convertToArabicNumeral(prayerDistribution[key])} صفحة
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+            
+            {Object.values(selectedPrayers).some(Boolean) && (
+              <div className="mt-4 bg-blue-50 p-3 rounded border border-blue-200">
+                <p className="text-blue-800">
+                  لقد اخترت قراءة {convertToArabicNumeral(pagesPerDay)} صفحة موزعة على {convertToArabicNumeral(Object.values(selectedPrayers).filter(Boolean).length)} {Object.values(selectedPrayers).filter(Boolean).length === 1 ? 'صلاة' : 'صلوات'}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={handlePrayerSelectionSubmit}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            disabled={!Object.values(selectedPrayers).some(Boolean)}
+          >
+            إنشاء الخطة
+          </button>
+        </div>
+      )}
+      
+      {step === 3 && (
+        <div className="w-full max-w-4xl">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 className="text-3xl font-bold text-center mb-2 text-green-700">{getCurrentDate()}</h1>
+            <p className="text-center mb-6">
+              هدفك اليومي: {convertToArabicNumeral(pagesPerDay)} صفحة
+            </p>
+            
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Daily checklist */}
+              <div className="flex-1 border rounded-lg p-4">
+                <h2 className="text-xl font-bold mb-4 text-center">متابعة اليوم</h2>
+                <div className="space-y-3">
+                  {Object.entries(selectedPrayers)
+                    .filter(([key, selected]) => selected)
+                    .map(([prayer, _]) => (
+                      <div key={prayer} className="flex items-center border-b pb-2">
+                        <input
+                          type="checkbox"
+                          checked={checkedTimes.includes(prayer)}
+                          onChange={() => toggleTimeCheck(prayer)}
+                          className="form-checkbox h-5 w-5 text-green-600"
+                        />
+                        <span className="mr-2">بعد صلاة {prayerNames[prayer]}</span>
+                        <span className="mr-auto">{convertToArabicNumeral(prayerDistribution[prayer])} صفحة</span>
+                      </div>
+                    ))}
+                </div>
+                
+                <button
+                  onClick={resetDay}
+                  className="mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm"
+                >
+                  إعادة ضبط اليوم
+                </button>
+              </div>
+              
+              {/* Monthly progress */}
+              <div className="flex-1 border rounded-lg p-4">
+                <h2 className="text-xl font-bold mb-4 text-center">متابعة الشهر</h2>
+                <div className="grid grid-cols-6 gap-2">
+                  {Array(30).fill(0).map((_, index) => (
+                    <div 
+                      key={index}
+                      className={`
+                        border rounded-md p-2 text-center
+                        ${monthlyProgress[index] ? 'bg-green-500 text-white' : 'bg-white'}
+                      `}
+                    >
+                      {convertToArabicNumeral(index + 1)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <button
+              onClick={() => setStep(1)}
+              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
+            >
+              تعديل الخطة
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RamadanQuranTracker;
